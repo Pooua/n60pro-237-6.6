@@ -13,12 +13,12 @@
 #sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
 
 # Add a feed source
-echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
+#echo #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.d
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
 
 # Add ADGuardHome source
-git clone https://github.com/rufengsuixing/luci-app-adguardhome package/luci-app-adguardhome
-chmod -R 755 ./package/luci-app-adguardhome/*
+#git clone https://github.com/rufengsuixing/luci-app-adguardhome package/luci-app-adguardhome
+#chmod #chmod -R 755 ./package/luci-app-adguar
 
 # Add OpenAppFilter source
 git clone https://github.com/destan19/OpenAppFilter.git package/OpenAppFilter
