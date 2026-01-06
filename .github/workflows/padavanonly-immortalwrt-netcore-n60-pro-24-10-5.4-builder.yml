@@ -10,7 +10,7 @@
 # See /LICENSE for more information.
 #
 
-name: padavanonly-immortalwrt-netcore-n60-pro-5.4-24-10-builder
+name: padavanonly-immortalwrt-netcore-n60-pro-24-10-5.4-builder
 
 on:
   repository_dispatch:
@@ -20,13 +20,13 @@ env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
   REPO_BRANCH: 2410
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: ./netcore_n60-pro/config/padavanonly-immortalwrt-5.4-24-10.config
+  CONFIG_FILE: ./netcore_n60-pro/config/padavanonly-immortalwrt-24-10-5.4.config
   DIY_P1_SH: ./script/update_feeds.sh
   DIY_P2_SH: ./script/edit_config.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
-  FIRMWARE_TAG: padavanonly-immortalwrt-netcore-n60-pro-5.4-24-10
+  FIRMWARE_TAG: padavanonly-immortalwrt-netcore-n60-pro-24-10-5.4
   TZ: Asia/Shanghai
 
 jobs:
