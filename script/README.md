@@ -1,10 +1,6 @@
 ## 简介
 编译所用到的脚本文件，如添加软件源、调整系统配置等。
 
-脚本名：update_feeds.sh 
+脚本名：update_feeds.sh ---添加软件源
 
-作用：添加软件源
-
-脚本名：edit_config.sh 
-
-作用：调整系统配置
+脚本名：edit_config.sh ---调整系统配置
