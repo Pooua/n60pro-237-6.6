@@ -10,7 +10,7 @@
 # See /LICENSE for more information.
 #
 
-name: Pooua-immortalwrt-mt798x-n60pro-builder
+name: hanwckf-immortalwrt-5.4-21_02-netcore_n60-pro-builder.yml
 
 on:
   repository_dispatch:
@@ -20,13 +20,13 @@ env:
   REPO_URL: https://github.com/Pooua/immortalwrt-mt798x
   REPO_BRANCH: netcore-n60-pro
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: Pooua-n60-pro.config
-  DIY_P1_SH: diy-part1.sh
-  DIY_P2_SH: diy-part5-6.6.sh
+  CONFIG_FILE: ./netcore_n60-pro/config/hanwckf-immortalwrt-5.4-21_02.config
+  DIY_P1_SH: ./script/update_feeds.sh
+  DIY_P2_SH: ./script/edit_config.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
-  FIRMWARE_TAG: Pooua-netcore-n60-pro
+  FIRMWARE_TAG: hanwckf-immortalwrt-5.4-21_02-netcore_n60-pro
   TZ: Asia/Shanghai
 
 jobs:
