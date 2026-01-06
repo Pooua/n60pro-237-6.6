@@ -10,7 +10,7 @@
 # See /LICENSE for more information.
 #
 
-name: padavanonly-immortalwrt-mt798x-2410-update-checker
+name: padavanonly-immortalwrt-netcore-n60-pro-24-10-5.4-update-checker
 
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
