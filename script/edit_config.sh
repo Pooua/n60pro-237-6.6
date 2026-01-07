@@ -17,8 +17,8 @@ sed -i 's/192.168.1.1/10.0.1.254/g' package/base-files/files/bin/config_generate
 #sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
 
 # Modify hostname
-sed -i 's/OpenWrt/Poua/g' package/base-files/files/bin/config_generate
-
+sed -i 's/ImmortalWrt/Poua/g' package/base-files/files/bin/config_generate
+I
 # 添加组播防火墙规则
 cat >> package/network/config/firewall/files/firewall.config <<EOF
 config rule
