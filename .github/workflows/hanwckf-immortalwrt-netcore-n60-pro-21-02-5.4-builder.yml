@@ -1,7 +1,7 @@
 #
 # https://github.com/P3TERX/Actions-OpenWrt
 #
-# File: .github/workflows/openwrt-bulder.yml
+# File: .github/workflows/openwrt-builder.yml
 # Description: Build OpenWrt using GitHub Actions
 #
 # Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
@@ -103,21 +103,24 @@ jobs:
       if: (!cancelled())
       run: df -hT
 
-    - name: Upload bin directory
-      uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-      with:
-        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-        path: openwrt/bin
-
     - name: Organize files
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd openwrt/bin/targets/*/*
-        rm -rf packages
+        # 移除了 rm -rf packages 避免安装包被删除
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 提取 Zabbix IPK 安装包
+      id: extract_ipk
+      if: steps.compile.outputs.status == 'success' && !cancelled()
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/zabbix_export
+        # 搜索并拷贝 zabbix-proxy 和 libsqlite3 到独立文件夹
+        find openwrt/bin/packages/ -name "zabbix-proxy*.ipk" -exec cp {} $GITHUB_WORKSPACE/zabbix_export/ \;
+        find openwrt/bin/packages/ -name "libsqlite3*.ipk" -exec cp {} $GITHUB_WORKSPACE/zabbix_export/ \;
+        echo "ZABBIX_PATH=$GITHUB_WORKSPACE/zabbix_export" >> $GITHUB_ENV
 
     - name: Upload firmware directory
       uses: actions/upload-artifact@main
@@ -126,13 +129,21 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
+    - name: Upload Zabbix Packages
+      uses: actions/upload-artifact@main
+      if: steps.compile.outputs.status == 'success' && !cancelled()
+      with:
+        name: Zabbix_SQLite3_IPK${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.ZABBIX_PATH }}/*.ipk
+
     - name: Generate release tag
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")-${{ env.FIRMWARE_TAG }}" >> $GITHUB_OUTPUT
         touch release.txt
-        [ ${UPLOAD_GOFILE} = true && ${{ steps.gofile.outputs.url }} ] && echo "🔗 [GoFile](${{ steps.gofile.outputs.url }})" >> release.txt
+        echo "🔥 固件编译完成" >> release.txt
+        echo "📦 Zabbix Proxy (SQLite3) 软件包已包含在附件中" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
@@ -143,7 +154,9 @@ jobs:
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
-        files: ${{ env.FIRMWARE }}/*
+        files: |
+          ${{ env.FIRMWARE }}/*
+          ${{ env.ZABBIX_PATH }}/*.ipk
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@main
