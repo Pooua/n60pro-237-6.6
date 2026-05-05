@@ -77,3 +77,6 @@ config rule
         option proto 'udp'
         option target 'ACCEPT'
 EOF
+
+echo "CONFIG_PACKAGE_zabbix-proxy=y" >> .config
+echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
