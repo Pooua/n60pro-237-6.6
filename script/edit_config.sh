@@ -5,47 +5,34 @@
 #
 
 # --- 1. 基础配置修改 ---
+# 修改默认IP
 sed -i 's/192.168.1.1/10.0.1.254/g' package/base-files/files/bin/config_generate
+# 添加TTL密码认证
 sed -i "s/set system\.@system\[-1\]\.ttylogin='0'/set system.@system[-1].ttylogin='1'/g" package/base-files/files/bin/config_generate
+# 调整默认主题
+#sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
+# 修改主机名
 sed -i 's/ImmortalWrt/N60Pro/g' package/base-files/files/bin/config_generate
 
 # --- 2. WIFI 配置修改 ---
+# 修改 SSID
 sed -i 's/ImmortalWrt-2.4G/N60Pro-2.4G/g' package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
 sed -i 's/ImmortalWrt-5G/N60Pro-5G/g' package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
+sed -i 's/ImmortalWrt-6G/N60Pro-6G/g' package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
+
+# 替换国家代码
 sed -i "s/set wireless\\.\\\${dev}\\.country=CN/set wireless.\\\${dev}.country=US/g" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
+
+# 调整WIFI加密方式
 sed -i "s/set wireless\\.default_\\\${dev}\\.encryption=none/set wireless.default_\\\${dev}.encryption='sae-mixed'/g" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
+
+# WIFI添加密码
 sed -i "/set wireless\\.default_\\\${dev}\\.network=lan/a\set wireless.default_\\\${dev}.key='88888888'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
+#sed -i "/set wireless\\.default_\\\${dev}\\.network=lan/a\                                        set wireless.default_\\\${dev}.key='88888888'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
+
+# 隐藏WIFI
 sed -i "/set wireless\\.default_\\\${dev}\\.mode=ap/a\set wireless.default_\\\${dev}.hidden='1'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
-
-# --- 3. Zabbix Proxy SQLite3 深度修复 ---
-ZABBIX_DIR=$(find feeds/packages/ -name zabbix -type d | head -n 1)
-
-if [ -n "$ZABBIX_DIR" ]; then
-    echo "正在为 Zabbix Proxy 注入自动修复补丁..."
-    Z_MAKE="$ZABBIX_DIR/Makefile"
-
-    # A. 修改 Makefile 依赖，确保选中编译 libsqlite3
-    sed -i '/DEPENDS:=/ s/$/ +libsqlite3/' "$Z_MAKE"
-    
-    # B. 在配置参数中插入 SQLite3 编译参数
-    sed -i '/--disable-java/a \	--with-sqlite3 \\' "$Z_MAKE"
-
-    # C. 注入 Post-Configure Hook，绕过 Zabbix 对 SQLite3 的官方限制报错
-    # 这一步非常关键，否则 configure 阶段会报 "SQLite is not supported as a main database"
-    cat >> "$Z_MAKE" <<EOF
-
-# 自动绕过 SQLite 限制的 Hook
-define Build/Configure/Post-SQLite-Fix
-	find \$(PKG_BUILD_DIR) -name configure -exec sed -i 's/as_fn_error "SQLite is not supported as a main Zabbix database backend."/echo "Bypassing SQLite check"/g' {} +
-end
-
-Hooks/Configure/Post += Build/Configure/Post-SQLite-Fix
-EOF
-
-    echo "Zabbix 源码级补丁注入完成。"
-else
-    echo "警告: 未找到 Zabbix 源码目录，请检查 feeds 订阅是否包含 packages 仓库。"
-fi
+#sed -i "/set wireless\\.default_\\\${dev}\\.mode=ap/a\                                        set wireless.default_\\\${dev}.hidden='1'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
 
 # --- 4. 防火墙规则 ---
 cat >> package/network/config/firewall/files/firewall.config <<EOF
