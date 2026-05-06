@@ -1,3 +1,15 @@
+#
+# https://github.com/P3TERX/Actions-OpenWrt
+#
+# File: .github/workflows/openwrt-bulder.yml
+# Description: Build OpenWrt using GitHub Actions
+#
+# Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
+
 name: hanwckf-immortalwrt-netcore-n60-pro-21-02-5.4-builder
 
 on:
@@ -71,24 +83,7 @@ jobs:
       id: package
       run: |
         cd openwrt
-        # 第一次 defconfig 建立基础环境
         make defconfig
-        
-        # 强行再次注入 Zabbix 配置，防止被环境依赖剔除
-        # 统一使用 nossl 变体以避免 SSL 库冲突
-        echo "CONFIG_PACKAGE_zabbix-proxy-nossl=y" >> .config
-        echo "CONFIG_PACKAGE_zabbix-extra-agentd=y" >> .config
-        echo "CONFIG_PACKAGE_zabbix-extra-sender=y" >> .config
-        echo "CONFIG_PACKAGE_zabbix-extra-get=y" >> .config
-        echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
-        
-        # 第二次 defconfig 确认依赖并补全相关包
-        make defconfig
-        
-        # 验证步骤：如果 grep 找不到配置，则停止 Action
-        echo "--- 检查 Zabbix 配置状态 ---"
-        grep "CONFIG_PACKAGE_zabbix-proxy-nossl=y" .config || (echo "错误: Zabbix 仍未被选中，请检查依赖冲突" && exit 1)
-        
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
@@ -108,22 +103,21 @@ jobs:
       if: (!cancelled())
       run: df -hT
 
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: openwrt/bin
+
     - name: Organize files
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd openwrt/bin/targets/*/*
+        rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
-
-    - name: 提取 Zabbix IPK 安装包
-      id: extract_ipk
-      if: steps.compile.outputs.status == 'success' && !cancelled()
-      run: |
-        mkdir -p $GITHUB_WORKSPACE/zabbix_export
-        find openwrt/bin/packages/ -name "zabbix-proxy*.ipk" -exec cp {} $GITHUB_WORKSPACE/zabbix_export/ \;
-        find openwrt/bin/packages/ -name "libsqlite3*.ipk" -exec cp {} $GITHUB_WORKSPACE/zabbix_export/ \;
-        echo "ZABBIX_PATH=$GITHUB_WORKSPACE/zabbix_export" >> $GITHUB_ENV
 
     - name: Upload firmware directory
       uses: actions/upload-artifact@main
@@ -132,21 +126,13 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    - name: Upload Zabbix Packages
-      uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && !cancelled()
-      with:
-        name: Zabbix_SQLite3_IPK${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-        path: ${{ env.ZABBIX_PATH }}/*.ipk
-
     - name: Generate release tag
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")-${{ env.FIRMWARE_TAG }}" >> $GITHUB_OUTPUT
         touch release.txt
-        echo "🔥 固件编译完成" >> release.txt
-        echo "📦 Zabbix Proxy (SQLite3) 软件包已包含在附件中" >> release.txt
+        [ ${UPLOAD_GOFILE} = true && ${{ steps.gofile.outputs.url }} ] && echo "🔗 [GoFile](${{ steps.gofile.outputs.url }})" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
@@ -157,9 +143,7 @@ jobs:
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
-        files: |
-          ${{ env.FIRMWARE }}/*
-          ${{ env.ZABBIX_PATH }}/*.ipk
+        files: ${{ env.FIRMWARE }}/*
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@main
