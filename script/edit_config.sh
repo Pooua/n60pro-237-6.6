@@ -17,26 +17,35 @@ sed -i "s/set wireless\\.default_\\\${dev}\\.encryption=none/set wireless.defaul
 sed -i "/set wireless\\.default_\\\${dev}\\.network=lan/a\set wireless.default_\\\${dev}.key='88888888'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
 sed -i "/set wireless\\.default_\\\${dev}\\.mode=ap/a\set wireless.default_\\\${dev}.hidden='1'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
 
-# --- 3. Zabbix Proxy SQLite3 核心修复 (增强版) ---
-ZABBIX_MAKE=$(find feeds/packages/ -name Makefile | grep "admin/zabbix/Makefile")
+# --- Zabbix Proxy SQLite3 深度修复与强制启用 ---
+ZABBIX_DIR=$(find feeds/packages/ -name zabbix -type d | head -n 1)
 
-if [ -n "$ZABBIX_MAKE" ]; then
-    echo "正在深度修复 Zabbix SQLite3 限制..."
+if [ -n "$ZABBIX_DIR" ]; then
+    echo "正在强制配置 Zabbix Proxy..."
     
-    # A. 修改 Makefile，增加 --with-sqlite3 参数并添加依赖
-    sed -i '/DEPENDS:=/ s/$/ +libsqlite3/' "$ZABBIX_MAKE"
-    # 在 CONFIGURE_ARGS 中强制插入 sqlite 支持
-    sed -i '/--disable-java/a \	--with-sqlite3 \\' "$ZABBIX_MAKE"
+    # 1. 物理删除阻碍编译的报错行 (双重保险)
+    find "$ZABBIX_DIR" -name configure -exec sed -i 's/as_fn_error "SQLite is not supported as a main Zabbix database backend."/echo "Bypassing SQLite check"/g' {} +
 
-    # B. 暴力破解 configure 脚本限制
-    # 我们不仅修改已存在的 configure，还通过一种“钩子”方式，
-    # 在 Makefile 的编译准备阶段直接把错误检查逻辑删掉
-    sed -i 's/as_fn_error "SQLite is not supported as a main Zabbix database backend."/echo "Bypassing SQLite check"/g' $(find feeds/packages/ -name configure) 2>/dev/null || true
+    # 2. 修改 Makefile 强制添加依赖和配置参数
+    Z_MAKE="$ZABBIX_DIR/Makefile"
+    sed -i '/DEPENDS:=/ s/$/ +libsqlite3/' "$Z_MAKE"
+    # 在适当位置插入 --with-sqlite3
+    sed -i '/--disable-java/a \	--with-sqlite3 \\' "$Z_MAKE"
 
-    # C. 针对 OpenWrt 编译流程的特殊补丁
-    # 这一行会在编译开始前，强行搜索 build_dir 下解压出来的 configure 并修改它
-    # 防止 patch 或 autoreconf 重新生成了带报错的 configure
-    cat >> "$ZABBIX_MAKE" <<EOF
+    # 3. 强制在 .config 中启用特定的变体 (非常重要)
+    # 默认编译 nossl 版本以减少冲突
+    echo "CONFIG_PACKAGE_zabbix-proxy-nossl=y" >> .config
+    echo "CONFIG_PACKAGE_zabbix-extra-agentd=y" >> .config
+    echo "CONFIG_PACKAGE_zabbix-extra-sender=y" >> .config
+    echo "CONFIG_PACKAGE_zabbix-extra-get=y" >> .config
+    
+    # 确保依赖包也被选中
+    echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
+    
+    echo "Zabbix 配置已强制注入。"
+else
+    echo "警告: 未找到 Zabbix 源码目录，请检查 feeds 是否更新成功。"
+fi
 
 # 强行绕过 SQLite 检查的 Hook
 define Build/Configure/Post-SQLite-Fix
