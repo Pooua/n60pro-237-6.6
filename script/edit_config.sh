@@ -21,16 +21,17 @@ sed -i "/set wireless\\.default_\\\${dev}\\.mode=ap/a\set wireless.default_\\\${
 ZABBIX_DIR=$(find feeds/packages/ -name zabbix -type d | head -n 1)
 
 if [ -n "$ZABBIX_DIR" ]; then
-    echo "正在为 Zabbix Proxy 注入自动修复挂钩..."
+    echo "正在为 Zabbix Proxy 注入自动修复补丁..."
     Z_MAKE="$ZABBIX_DIR/Makefile"
 
-    # A. 修改 Makefile 依赖
+    # A. 修改 Makefile 依赖，确保选中编译 libsqlite3
     sed -i '/DEPENDS:=/ s/$/ +libsqlite3/' "$Z_MAKE"
     
-    # B. 在配置参数中插入 SQLite3 支持
+    # B. 在配置参数中插入 SQLite3 编译参数
     sed -i '/--disable-java/a \	--with-sqlite3 \\' "$Z_MAKE"
 
-    # C. 将 Makefile 语法写入 Makefile (使用反斜杠转义以防 Shell 解析)
+    # C. 注入 Post-Configure Hook，绕过 Zabbix 对 SQLite3 的官方限制报错
+    # 这一步非常关键，否则 configure 阶段会报 "SQLite is not supported as a main database"
     cat >> "$Z_MAKE" <<EOF
 
 # 自动绕过 SQLite 限制的 Hook
@@ -41,16 +42,9 @@ end
 Hooks/Configure/Post += Build/Configure/Post-SQLite-Fix
 EOF
 
-    # D. 强制选中包变体
-    echo "CONFIG_PACKAGE_zabbix-proxy-nossl=y" >> .config
-    echo "CONFIG_PACKAGE_zabbix-extra-agentd=y" >> .config
-    echo "CONFIG_PACKAGE_zabbix-extra-sender=y" >> .config
-    echo "CONFIG_PACKAGE_zabbix-extra-get=y" >> .config
-    echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
-
-    echo "Zabbix 补丁注入完成。"
+    echo "Zabbix 源码级补丁注入完成。"
 else
-    echo "错误: 未找到 Zabbix 源码目录。"
+    echo "警告: 未找到 Zabbix 源码目录，请检查 feeds 订阅是否包含 packages 仓库。"
 fi
 
 # --- 4. 防火墙规则 ---
