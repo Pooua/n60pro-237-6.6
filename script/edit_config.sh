@@ -17,48 +17,40 @@ sed -i "s/set wireless\\.default_\\\${dev}\\.encryption=none/set wireless.defaul
 sed -i "/set wireless\\.default_\\\${dev}\\.network=lan/a\set wireless.default_\\\${dev}.key='88888888'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
 sed -i "/set wireless\\.default_\\\${dev}\\.mode=ap/a\set wireless.default_\\\${dev}.hidden='1'" package/mtk/applications/mtwifi-cfg/files/mtwifi.sh
 
-# --- Zabbix Proxy SQLite3 深度修复与强制启用 ---
+# --- 3. Zabbix Proxy SQLite3 深度修复 ---
 ZABBIX_DIR=$(find feeds/packages/ -name zabbix -type d | head -n 1)
 
 if [ -n "$ZABBIX_DIR" ]; then
-    echo "正在强制配置 Zabbix Proxy..."
-    
-    # 1. 物理删除阻碍编译的报错行 (双重保险)
-    find "$ZABBIX_DIR" -name configure -exec sed -i 's/as_fn_error "SQLite is not supported as a main Zabbix database backend."/echo "Bypassing SQLite check"/g' {} +
-
-    # 2. 修改 Makefile 强制添加依赖和配置参数
+    echo "正在为 Zabbix Proxy 注入自动修复挂钩..."
     Z_MAKE="$ZABBIX_DIR/Makefile"
+
+    # A. 修改 Makefile 依赖
     sed -i '/DEPENDS:=/ s/$/ +libsqlite3/' "$Z_MAKE"
-    # 在适当位置插入 --with-sqlite3
+    
+    # B. 在配置参数中插入 SQLite3 支持
     sed -i '/--disable-java/a \	--with-sqlite3 \\' "$Z_MAKE"
 
-    # 3. 强制在 .config 中启用特定的变体 (非常重要)
-    # 默认编译 nossl 版本以减少冲突
-    echo "CONFIG_PACKAGE_zabbix-proxy-nossl=y" >> .config
-    echo "CONFIG_PACKAGE_zabbix-extra-agentd=y" >> .config
-    echo "CONFIG_PACKAGE_zabbix-extra-sender=y" >> .config
-    echo "CONFIG_PACKAGE_zabbix-extra-get=y" >> .config
-    
-    # 确保依赖包也被选中
-    echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
-    
-    echo "Zabbix 配置已强制注入。"
-else
-    echo "警告: 未找到 Zabbix 源码目录，请检查 feeds 是否更新成功。"
-fi
+    # C. 将 Makefile 语法写入 Makefile (使用反斜杠转义以防 Shell 解析)
+    cat >> "$Z_MAKE" <<EOF
 
-# 强行绕过 SQLite 检查的 Hook
+# 自动绕过 SQLite 限制的 Hook
 define Build/Configure/Post-SQLite-Fix
 	find \$(PKG_BUILD_DIR) -name configure -exec sed -i 's/as_fn_error "SQLite is not supported as a main Zabbix database backend."/echo "Bypassing SQLite check"/g' {} +
 end
 
-# 将这个 Hook 挂载到 Configure 之后，Compile 之前
 Hooks/Configure/Post += Build/Configure/Post-SQLite-Fix
 EOF
 
-    echo "Zabbix Proxy 深度修复补丁已应用。"
+    # D. 强制选中包变体
+    echo "CONFIG_PACKAGE_zabbix-proxy-nossl=y" >> .config
+    echo "CONFIG_PACKAGE_zabbix-extra-agentd=y" >> .config
+    echo "CONFIG_PACKAGE_zabbix-extra-sender=y" >> .config
+    echo "CONFIG_PACKAGE_zabbix-extra-get=y" >> .config
+    echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
+
+    echo "Zabbix 补丁注入完成。"
 else
-    echo "错误: 未找到 Zabbix Makefile。"
+    echo "错误: 未找到 Zabbix 源码目录。"
 fi
 
 # --- 4. 防火墙规则 ---
@@ -80,7 +72,3 @@ config rule
         option proto 'udp'
         option target 'ACCEPT'
 EOF
-
-# --- 5. 强制启用包 ---
-echo "CONFIG_PACKAGE_zabbix-proxy=y" >> .config
-echo "CONFIG_PACKAGE_libsqlite3=y" >> .config
